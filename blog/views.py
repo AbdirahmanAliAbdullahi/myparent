@@ -1,10 +1,13 @@
-from django.shortcuts import render,get_object_or_404
+from django.shortcuts import render,get_object_or_404,redirect
 from django.contrib.auth.mixins import LoginRequiredMixin,UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.views.generic import ListView,DetailView,CreateView,UpdateView,DeleteView
-from .models import Post
+from .models import Post,Comment
+from .forms import CommentForm
+from django.contrib.auth.decorators import login_required
 
-
+  
+ 
 
 
 
@@ -13,7 +16,7 @@ def home(request):
     context={'posts':Post.objects.all()}
     return render(request, 'blog/home.html', context)
 
-class PostListView(ListView):
+class PostListView( ListView):
     model=Post
     template_name='blog/home.html'  #<app>/<model>_<viewtype>.html
     context_object_name='posts'
@@ -72,10 +75,33 @@ class PostDeleteView(LoginRequiredMixin,UserPassesTestMixin,DeleteView):
             return True
         return False
 
-
-
-
-
 def about(request):
 	return render(request,'blog/about.html',{'title':'About'})
+
+
+def add_comment_to_post(request, pk):
+    post = get_object_or_404(Post, pk=pk)
+    if request.method == "POST":
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.post = post
+            comment.save()
+            return redirect('/')
+    else:
+        form = CommentForm()
+    return render(request, 'blog/add_comment_to_post.html', {'form': form})
+
+
+@login_required
+def comment_approve(request, pk):
+    comment = get_object_or_404(Comment, pk=pk)
+    comment.approve()
+    return redirect('post_detail', pk=comment.post.pk)
+
+@login_required
+def comment_remove(request, pk):
+    comment = get_object_or_404(Comment, pk=pk)
+    comment.delete()
+    return redirect('post_detail', pk=comment.post.pk)
 
